@@ -22,7 +22,7 @@ export default function NewProduct() {
       <div className="card" style={{ maxWidth: 640, padding: 24 }}>
         <ProductForm
           label="Add product"
-          onSaved={(p) => r.push("/products/" + p.id)}
+          onSaved={(p) => r.push("/products")}
         />
       </div>
     </>
