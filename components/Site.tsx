@@ -7,28 +7,28 @@ export function SiteHeader() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   useEffect(() => setAuthed(!!getToken()), []);
   return (
-      <header className="hd">
-        <div className="w hdr">
-          <Wordmark size={22} />
-          <nav className="nav">
-            {authed === true && (
-                <Link className="btn auto" href="/dashboard">
-                  Go to dashboard
-                </Link>
-            )}
-            {authed === false && (
-                <>
-                  <Link className="li" href="/login">
-                    Log in
-                  </Link>
-                  <Link className="btn auto" href="/login">
-                    Start free
-                  </Link>
-                </>
-            )}
-          </nav>
-        </div>
-      </header>
+    <header className="hd">
+      <div className="w hdr">
+        <Wordmark size={22} />
+        <nav className="nav">
+          {authed === true && (
+            <Link className="btn auto" href="/dashboard">
+              Go to dashboard
+            </Link>
+          )}
+          {authed === false && (
+            <>
+              <Link className="li" href="/login">
+                Log in
+              </Link>
+              <Link className="btn auto" href="/login">
+                Start free
+              </Link>
+            </>
+          )}
+        </nav>
+      </div>
+    </header>
   );
 }
 // SiteFooter stays exactly as it is

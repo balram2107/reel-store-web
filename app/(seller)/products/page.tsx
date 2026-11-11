@@ -5,14 +5,47 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/format";
 import type { SellerProduct } from "@/lib/types";
 import { ErrBox } from "@/components/ui";
+
+const PER = 20;
+type Meta = { page: number; per_page: number; total: number };
+
 export default function Products() {
   const [rows, setRows] = useState<SellerProduct[] | null>(null);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
+  const [qd, setQd] = useState("");
   const [err, setErr] = useState<unknown>(null);
+
   useEffect(() => {
-    api<{ products: SellerProduct[] }>("/seller/products", { auth: true })
-      .then((x) => setRows(x.products))
-      .catch(setErr);
-  }, []);
+    const t = setTimeout(() => {
+      setQd(q.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    let live = true;
+    setRows(null);
+    setErr(null);
+    const qs = `page=${page}&per_page=${PER}${qd ? `&q=${encodeURIComponent(qd)}` : ""}`;
+    api<{ products: SellerProduct[]; meta: Meta }>(`/seller/products?${qs}`, {
+      auth: true,
+    })
+      .then((x) => {
+        if (!live) return;
+        setRows(x.products);
+        setMeta(x.meta);
+      })
+      .catch((e) => live && setErr(e));
+    return () => {
+      live = false;
+    };
+  }, [page, qd]);
+
+  const pages = meta ? Math.max(1, Math.ceil(meta.total / meta.per_page)) : 1;
+
   return (
     <>
       <div
@@ -32,11 +65,23 @@ export default function Products() {
           Add product
         </Link>
       </div>
+      <input
+        className="in"
+        type="search"
+        placeholder="Search products by name"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        style={{ marginBottom: 12 }}
+      />
       <ErrBox e={err} />
       <div className="card">
         {!rows && !err && <p className="mut">Loading…</p>}
         {rows && rows.length === 0 && (
-          <p className="mut">No products yet. Add your first one.</p>
+          <p className="mut">
+            {qd
+              ? "No products match your search."
+              : "No products yet. Add your first one."}
+          </p>
         )}
         {rows?.map((p, i) => (
           <div className={"row" + (i === 0 ? " first" : "")} key={p.id}>
@@ -76,6 +121,35 @@ export default function Products() {
           </div>
         ))}
       </div>
+      {meta && pages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 16,
+            marginTop: 16,
+          }}
+        >
+          <button
+            className="btn s auto"
+            disabled={page <= 1}
+            onClick={() => setPage(page - 1)}
+          >
+            ← Previous
+          </button>
+          <span className="mut">
+            Page {page} of {pages}
+          </span>
+          <button
+            className="btn s auto"
+            disabled={page >= pages}
+            onClick={() => setPage(page + 1)}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </>
   );
 }

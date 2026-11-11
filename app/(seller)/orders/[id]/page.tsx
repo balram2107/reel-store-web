@@ -5,42 +5,77 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { rupees, variantText } from "@/lib/format";
 import type { SellerOrder } from "@/lib/types";
-import { Badge, ErrBox, Field } from "@/components/ui";
+import { Badge, Field } from "@/components/ui";
+import {
+  ApiAlert,
+  ConfirmDialog,
+  SubmitButton,
+  useToast,
+} from "@/components/feedback";
+
 const dot = (s: string) =>
   s === "done"
     ? { background: "var(--gr)" }
     : s === "now"
       ? { border: "3px solid var(--blue)" }
       : { border: "2px solid var(--ln2)" };
+
+// What the seller sees after each action succeeds
+const DONE: Record<string, string> = {
+  confirm_payment: "Payment confirmed. The order is now paid.",
+  pack: "Order marked as packed.",
+  ship: "Order marked as shipped.",
+  deliver: "Order marked as delivered.",
+  cancel: "Order cancelled.",
+};
+
 export default function OrderPage() {
   const { id } = useParams<{ id: string }>();
+  const toast = useToast();
   const [o, setO] = useState<SellerOrder | null>(null);
-  const [err, setErr] = useState<unknown>(null);
+  const [err, setErr] = useState<unknown>(null); // load failure only
   const [busy, setBusy] = useState(false);
   const [courier, setCourier] = useState("");
   const [ref, setRef] = useState("");
   const [reason, setReason] = useState("");
+  const [confirm, setConfirm] = useState<"pay" | "cancel" | null>(null);
+
   useEffect(() => {
     api<{ order: SellerOrder }>(`/seller/orders/${id}`, { auth: true })
       .then((x) => setO(x.order))
       .catch(setErr);
   }, [id]);
-  async function act(path: string, body?: unknown) {
+
+  // Action buttons are far down the page, so results show as toasts.
+  async function act(path: string, body?: unknown): Promise<boolean> {
     setBusy(true);
-    setErr(null);
     try {
       const x = await api<{ order: SellerOrder }>(
         `/seller/orders/${id}/${path}`,
         { method: "POST", body, auth: true },
       );
       setO(x.order);
+      toast.success(DONE[path] ?? "Order updated.");
+      setBusy(false);
+      return true;
     } catch (e) {
-      setErr(e);
+      toast.fromError(e, { title: "Order not updated" });
+      setBusy(false);
+      return false;
     }
-    setBusy(false);
   }
+
   if (!o)
-    return <>{err ? <ErrBox e={err} /> : <p className="mut">Loading…</p>}</>;
+    return (
+      <>
+        {err ? (
+          <ApiAlert error={err} title="Couldn't load this order" />
+        ) : (
+          <p className="mut">Loading…</p>
+        )}
+      </>
+    );
+
   const cod = o.payment_method === "cod";
   const canConfirm =
     !cod &&
@@ -51,6 +86,7 @@ export default function OrderPage() {
     now: "Now",
     next: "Next",
   };
+
   return (
     <>
       <Link href="/orders" style={{ fontSize: 14 }}>
@@ -70,7 +106,6 @@ export default function OrderPage() {
       >
         Order {o.public_id} <Badge status={o.status} />
       </h1>
-      <ErrBox e={err} />
       <div className="g" style={{ alignItems: "start" }}>
         <div style={{ display: "grid", gap: 16 }}>
           <div className="card">
@@ -165,20 +200,21 @@ export default function OrderPage() {
                 className="btn"
                 style={{ marginBottom: 8 }}
                 disabled={busy}
-                onClick={() => act("confirm_payment")}
+                onClick={() => setConfirm("pay")}
               >
                 Confirm payment received
               </button>
             )}
             {canPack && (
-              <button
-                className="btn"
+              <SubmitButton
+                type="button"
+                busy={busy}
+                busyLabel="Updating…"
                 style={{ marginBottom: 8 }}
-                disabled={busy}
                 onClick={() => act("pack")}
               >
                 Mark as packed
-              </button>
+              </SubmitButton>
             )}
             {o.status === "packed" && (
               <form
@@ -199,19 +235,20 @@ export default function OrderPage() {
                   value={ref}
                   onChange={(e) => setRef(e.target.value)}
                 />
-                <button className="btn" disabled={busy}>
+                <SubmitButton busy={busy} busyLabel="Updating…">
                   Mark as shipped
-                </button>
+                </SubmitButton>
               </form>
             )}
             {o.status === "shipped" && (
-              <button
-                className="btn"
-                disabled={busy}
+              <SubmitButton
+                type="button"
+                busy={busy}
+                busyLabel="Updating…"
                 onClick={() => act("deliver")}
               >
                 Mark as delivered
-              </button>
+              </SubmitButton>
             )}
             {o.status === "shipped" && o.shipping.courier && (
               <p className="mut" style={{ marginTop: 8 }}>
@@ -223,7 +260,7 @@ export default function OrderPage() {
                 style={{ marginTop: 12 }}
                 onSubmit={(e) => {
                   e.preventDefault();
-                  act("cancel", { reason });
+                  setConfirm("cancel");
                 }}
               >
                 <Field
@@ -243,6 +280,38 @@ export default function OrderPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirm === "pay"}
+        title="Confirm payment received?"
+        confirmLabel="Yes, payment received"
+        cancelLabel="Not yet"
+        destructive={false}
+        busy={busy}
+        onConfirm={async () => {
+          await act("confirm_payment");
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      >
+        Check that {rupees(o.total_paise)} has reached your UPI account before
+        you confirm. This marks the order as paid.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirm === "cancel"}
+        title="Cancel this order?"
+        confirmLabel="Cancel order"
+        cancelLabel="Keep order"
+        busy={busy}
+        onConfirm={async () => {
+          await act("cancel", { reason });
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      >
+        This can’t be undone.
+      </ConfirmDialog>
     </>
   );
 }

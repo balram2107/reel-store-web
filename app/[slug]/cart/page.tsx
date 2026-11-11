@@ -1,173 +1,272 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { api, errText } from "@/lib/api";
-import { getCart, setCart } from "@/lib/cart";
-import { rupees, variantText } from "@/lib/format";
-import type { CartLine, Quote } from "@/lib/types";
-import { Alert } from "@/components/ui";
+import { useStore } from "@/components/storefront/ctx";
+import { btn, Empty, ErrorBox, Img } from "@/components/storefront/ui";
+import { api, useAsync } from "@/lib/storefront-api";
+import { useCart } from "@/lib/storefront-cart";
+import { inr } from "@/lib/storefront-format";
+
 export default function CartPage() {
-  const { slug } = useParams<{ slug: string }>();
-  const [lines, setLines] = useState<CartLine[] | null>(null);
-  const [q, setQ] = useState<Quote | null>(null);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    setLines(getCart(slug));
-  }, [slug]);
-  useEffect(() => {
-    if (!lines) return;
-    if (!lines.length) {
-      setQ(null);
-      return;
-    }
-    setErr("");
-    api<Quote>(`/public/stores/${slug}/cart/quote`, {
-      method: "POST",
-      body: { items: lines },
-    })
-      .then(setQ)
-      .catch((e) => setErr(errText(e)));
-  }, [lines, slug]);
-  const save = (n: CartLine[]) => {
-    setCart(slug, n);
-    setLines(n);
-  };
-  const bad = (i: number) => {
-    const it = q?.items[i];
-    return (
-      !!it &&
-      (!it.available || q!.issues.some((x) => x.product_id === it.product_id))
-    );
-  };
-  const blocked =
-    !q ||
-    !lines?.length ||
-    !!q.issues.length ||
-    q.items.some((x) => !x.available);
+  const { slug, store } = useStore();
+  const { lines, setQty, remove } = useCart(slug);
+  const key = JSON.stringify(lines);
+  const q = useAsync(
+    () =>
+      lines.length
+        ? api.quote(
+            slug,
+            lines.map(({ product_id, variant, quantity }) => ({
+              product_id,
+              variant,
+              quantity,
+            })),
+          )
+        : Promise.resolve(null),
+    [slug, key],
+  );
+
   return (
-    <div className="mob plain" style={{ padding: 16 }}>
-      <Link href={`/${slug}`} style={{ fontSize: 14 }}>
-        ← Back to the store
-      </Link>
-      <h1 className="h1s" style={{ margin: "8px 0 16px" }}>
+    <div className="rs-wrap" style={{ paddingTop: 24, maxWidth: 860 }}>
+      <h1 style={{ margin: "0 0 20px", font: "700 30px var(--font)" }}>
         Your cart
       </h1>
-      {err && <Alert>{err}</Alert>}
-      {lines && !lines.length && (
-        <div className="card">
-          <p className="mut">Your cart is empty.</p>
+      {lines.length === 0 ? (
+        <Empty title="Your cart is empty">
+          <Link href={`/${slug}/shop`} style={{ color: "var(--btn)" }}>
+            Browse products
+          </Link>
+        </Empty>
+      ) : q.error ? (
+        <ErrorBox error={q.error} onRetry={q.reload} />
+      ) : !q.data ? (
+        <div aria-busy="true" style={{ color: "var(--muted)" }}>
+          Checking prices and stock…
         </div>
-      )}
-      {lines && lines.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          {lines.map((l, i) => {
-            const it = q?.items[i];
-            return (
-              <div
-                className={"row" + (i === 0 ? " first" : "")}
-                style={{ alignItems: "flex-start" }}
-                key={i}
-              >
-                <span>
-                  <b>{it?.name || "Product #" + l.product_id}</b>
-                  <br />
-                  <span className="mut">{variantText(l.variant)}</span>
-                  {bad(i) ? (
-                    <span
+      ) : (
+        <>
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              opacity: q.loading ? 0.6 : 1,
+            }}
+          >
+            {q.data.items.map((it) => {
+              const line =
+                lines.find(
+                  (l) =>
+                    l.product_id === it.product_id &&
+                    JSON.stringify(l.variant) === JSON.stringify(it.variant),
+                ) ?? lines.find((l) => l.product_id === it.product_id);
+              const issue = q.data!.issues.find(
+                (i) => i.product_id === it.product_id,
+              );
+              const label = Object.values(it.variant).join(" · ");
+              return (
+                <li
+                  key={it.product_id + label}
+                  style={{
+                    display: "flex",
+                    gap: 14,
+                    alignItems: "center",
+                    padding: "14px 0",
+                    borderBottom: "1px solid #E5E7EB",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ width: 56, flex: "none" }}>
+                    <Img src={it.cover_url} alt={it.name} ratio="1" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <Link
+                      href={`/${slug}/p/${it.slug}`}
+                      style={{ font: "500 15px var(--font)", color: "inherit" }}
+                    >
+                      {it.name}
+                    </Link>
+                    {label && (
+                      <div
+                        style={{
+                          font: "400 13px var(--font)",
+                          color: "var(--muted)",
+                        }}
+                      >
+                        {label}
+                      </div>
+                    )}
+                    {(!it.available || issue) && (
+                      <div
+                        role="alert"
+                        style={{
+                          font: "600 13px var(--font)",
+                          color: "#B91C1C",
+                          marginTop: 2,
+                        }}
+                      >
+                        {issue?.code === "out_of_stock"
+                          ? "Out of stock"
+                          : issue?.code === "invalid_variant"
+                            ? "This option is no longer available"
+                            : "No longer available"}
+                      </div>
+                    )}
+                  </div>
+                  {it.available && line && (
+                    <div
                       style={{
-                        display: "block",
-                        color: "var(--red)",
-                        fontWeight: 500,
+                        display: "flex",
+                        alignItems: "center",
+                        border: "1px solid #D1D5DB",
+                        borderRadius: "var(--r)",
+                        background: "#fff",
                       }}
                     >
-                      No longer available
-                    </span>
-                  ) : (
-                    <span className="qty" style={{ marginTop: 4 }}>
                       <button
-                        className="btn s"
-                        aria-label="Fewer"
-                        onClick={() =>
-                          save(
-                            lines.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    quantity: Math.max(1, x.quantity - 1),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
+                        type="button"
+                        aria-label={`Decrease ${it.name}`}
+                        disabled={line.quantity <= 1}
+                        onClick={() => setQty(line, line.quantity - 1)}
+                        style={{
+                          all: "unset",
+                          width: 44,
+                          height: 44,
+                          textAlign: "center",
+                          cursor: "pointer",
+                        }}
                       >
                         −
                       </button>
-                      <span className="t">{l.quantity}</span>
+                      <span style={{ minWidth: 24, textAlign: "center" }}>
+                        {it.quantity}
+                      </span>
                       <button
-                        className="btn s"
-                        aria-label="More"
-                        onClick={() =>
-                          save(
-                            lines.map((x, j) =>
-                              j === i ? { ...x, quantity: x.quantity + 1 } : x,
-                            ),
-                          )
+                        type="button"
+                        aria-label={`Increase ${it.name}`}
+                        disabled={
+                          it.max_quantity != null &&
+                          it.quantity >= it.max_quantity
                         }
+                        onClick={() => setQty(line, line.quantity + 1)}
+                        style={{
+                          all: "unset",
+                          width: 44,
+                          height: 44,
+                          textAlign: "center",
+                          cursor: "pointer",
+                        }}
                       >
                         +
                       </button>
-                    </span>
+                    </div>
                   )}
-                </span>
-                <span style={{ textAlign: "right" }}>
-                  <span className="t">
-                    {it ? rupees(it.line_total_paise) : ""}
-                  </span>
-                  <br />
+                  <div
+                    style={{
+                      width: 80,
+                      textAlign: "right",
+                      font: "600 15px var(--font)",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {it.available ? inr(it.line_total_paise) : "—"}
+                  </div>
                   <button
-                    className="btn s auto"
-                    style={{ minHeight: 44, marginTop: 4 }}
-                    onClick={() => save(lines.filter((_, j) => j !== i))}
+                    type="button"
+                    onClick={() =>
+                      remove({ product_id: it.product_id, variant: it.variant })
+                    }
+                    style={{
+                      minHeight: 44,
+                      padding: "0 8px",
+                      background: "none",
+                      border: 0,
+                      color: "var(--muted)",
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                      font: "400 14px var(--font)",
+                    }}
                   >
                     Remove
                   </button>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {q && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="row first">
-            <span>Subtotal</span>
-            <span className="t">{rupees(q.subtotal_paise)}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <div
+            style={{
+              marginTop: 20,
+              marginLeft: "auto",
+              maxWidth: 360,
+              font: "400 15px var(--font)",
+            }}
+          >
+            <Row a="Subtotal" b={inr(q.data.subtotal_paise)} />
+            <Row
+              a="Delivery"
+              b={
+                q.data.delivery_paise === 0
+                  ? "Free"
+                  : inr(q.data.delivery_paise)
+              }
+            />
+            {q.data.free_delivery_remaining_paise != null &&
+              q.data.free_delivery_remaining_paise > 0 && (
+                <div
+                  style={{
+                    font: "400 13px var(--font)",
+                    color: "var(--muted)",
+                    padding: "0 0 6px",
+                  }}
+                >
+                  Add {inr(q.data.free_delivery_remaining_paise)} more for free
+                  delivery.
+                </div>
+              )}
+            <div style={{ borderTop: "1px solid #D1D5DB", marginTop: 6 }}>
+              <Row a={<b>Total</b>} b={<b>{inr(q.data.total_paise)}</b>} />
+            </div>
+            {q.data.issues.length > 0 && (
+              <p
+                role="alert"
+                style={{ color: "#B91C1C", font: "500 14px var(--font)" }}
+              >
+                Remove unavailable items to continue.
+              </p>
+            )}
+            {q.data.issues.length > 0 || q.data.items.length === 0 ? (
+              <button
+                type="button"
+                disabled
+                style={{ ...btn(store), width: "100%", opacity: 0.5 }}
+              >
+                Checkout
+              </button>
+            ) : (
+              <Link
+                href={`/${slug}/checkout`}
+                style={{ ...btn(store), width: "100%" }}
+              >
+                Checkout
+              </Link>
+            )}
           </div>
-          <div className="row">
-            <span>Delivery</span>
-            <span className="t">{rupees(q.delivery_paise)}</span>
-          </div>
-          <div className="row" style={{ fontWeight: 600 }}>
-            <span>Total</span>
-            <span className="t">{rupees(q.total_paise)}</span>
-          </div>
-        </div>
+        </>
       )}
-      {q && blocked && (
-        <p className="mut" style={{ marginBottom: 12 }}>
-          Remove unavailable items to continue.
-        </p>
-      )}
-      {blocked ? (
-        <button className="btn" disabled>
-          Continue to checkout
-        </button>
-      ) : (
-        <Link className="btn" href={`/${slug}/checkout`}>
-          Continue to checkout
-        </Link>
-      )}
+    </div>
+  );
+}
+function Row({ a, b }: { a: React.ReactNode; b: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "6px 0",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      <span>{a}</span>
+      <span>{b}</span>
     </div>
   );
 }

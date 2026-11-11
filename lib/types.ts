@@ -164,6 +164,13 @@ export type SellerStore = {
   logo_url?: string | null;
   banner_url?: string | null;
   onboarding_complete: boolean;
+  about_text?: string | null;
+  shipping_policy?: string | null;
+  return_policy?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  dispatch_note?: string | null;
+  return_note?: string | null;
 };
 export type Category = { id: number; name: string; slug: string };
 export type AdminFeatures = {

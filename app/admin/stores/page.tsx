@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -7,27 +8,33 @@ import { ErrBox, Pager } from "@/components/ui";
 import { useRouter } from "next/navigation";
 import { startImpersonation } from "@/lib/impersonation";
 
-const KIND: Record<string, [string, string]> = {
+const STATUS: Record<string, [string, string]> = {
   live: ["Live", "g"],
-  open: ["Open", "g"],
+  active: ["Live", "g"],
+  pending: ["Pending", "n"],
   suspended: ["Suspended", "r"],
+  expired: ["Expired", "n"],
   closed: ["Closed", "n"],
-  ended: ["Ended", "n"],
 };
+
 export default function AdminStores() {
-    const r = useRouter();
+  const r = useRouter();
   const [q, setQ] = useState("");
   const [qs, setQs] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [d, setD] = useState<{ stores: AdminRow[]; meta: Meta } | null>(null);
   const [err, setErr] = useState<unknown>(null);
+  const [approving, setApproving] = useState<number | string | null>(null);
+
   useEffect(() => {
     setD(null);
     setErr(null);
+
     const p = new URLSearchParams({ page: String(page) });
     if (qs) p.set("q", qs);
     if (status) p.set("status", status);
+
     api<{ stores: AdminRow[]; meta: Meta }>(`/admin/stores?${p}`, {
       auth: true,
       store: false,
@@ -35,6 +42,40 @@ export default function AdminStores() {
       .then(setD)
       .catch(setErr);
   }, [qs, status, page]);
+
+  const approveStore = async (storeId: number | string) => {
+    if (!confirm("Are you sure you want to approve this store?")) return;
+
+    try {
+      setApproving(storeId);
+      setErr(null);
+
+      await api(`/admin/stores/${storeId}/approve`, {
+        method: "PATCH",
+        auth: true,
+        store: false,
+      });
+
+      // Refresh store list
+      setD(null);
+
+      const p = new URLSearchParams({ page: String(page) });
+      if (qs) p.set("q", qs);
+      if (status) p.set("status", status);
+
+      const result = await api<{ stores: AdminRow[]; meta: Meta }>(
+        `/admin/stores?${p}`,
+        { auth: true, store: false },
+      );
+
+      setD(result);
+    } catch (error) {
+      setErr(error);
+    } finally {
+      setApproving(null);
+    }
+  };
+
   return (
     <>
       <div
@@ -54,6 +95,7 @@ export default function AdminStores() {
           Create store
         </Link>
       </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -71,6 +113,7 @@ export default function AdminStores() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+
         <select
           className="in"
           style={{ marginTop: 0, maxWidth: 180 }}
@@ -83,16 +126,25 @@ export default function AdminStores() {
         >
           <option value="">All statuses</option>
           <option value="live">Live</option>
+          <option value="open">Open</option>
+          <option value="pending">Pending</option>
           <option value="suspended">Suspended</option>
+          <option value="closed">Closed</option>
+          <option value="expired">Ended</option>
         </select>
+
         <button className="btn auto">Search</button>
       </form>
+
       <ErrBox e={err} />
+
       <div className="card">
         {!d && !err && <p className="mut">Loading…</p>}
         {d && d.stores.length === 0 && <p className="mut">No stores found.</p>}
+
         {d?.stores.map((s, i) => {
-          const [l, k] = KIND[s.status] || [s.status, "n"];
+          const [l, k] = STATUS[s.status] || [s.status, "n"];
+
           return (
             <div className={"row" + (i === 0 ? " first" : "")} key={s.id}>
               <span>
@@ -100,25 +152,47 @@ export default function AdminStores() {
                 <br />
                 <span className="mut">{s.seller_email}</span>
               </span>
+
               <span className="mut t">{s.orders_count} orders</span>
+
               <span className={"b " + k}>{l}</span>
-                <span style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+
+              <span
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                {s.status === "pending" && (
                   <button
-                      className="btn s auto"
-                      onClick={() => {
-                          startImpersonation({ id: s.id, name: s.name });
-                          r.push("/dashboard");
-                      }}
+                    className="btn s auto"
+                    disabled={approving === s.id}
+                    onClick={() => approveStore(s.id)}
                   >
-                    Manage as seller
+                    {approving === s.id ? "Approving..." : "Approve store"}
                   </button>
-                  <Link href={"/admin/stores/" + s.id}>Details</Link>
-                  <a href={"/" + s.slug}>View store</a>
-                </span>
+                )}
+
+                <button
+                  className="btn s auto"
+                  onClick={() => {
+                    startImpersonation({ id: s.id, name: s.name });
+                    r.push("/dashboard");
+                  }}
+                >
+                  Manage as seller
+                </button>
+
+                <Link href={"/admin/stores/" + s.id}>Details</Link>
+                <a href={"/" + s.slug}>View store</a>
+              </span>
             </div>
           );
         })}
       </div>
+
       {d && <Pager meta={d.meta} onPage={setPage} />}
     </>
   );

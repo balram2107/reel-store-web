@@ -17,7 +17,7 @@ type Track = {
     delivery_paise: number;
     total_paise: number;
   };
-  store: { name: string; whatsapp_url: string | null };
+  store: { slug: string; name: string; whatsapp_url: string | null };
 };
 const dot = (s: string) =>
   s === "done"
@@ -148,6 +148,14 @@ export default function TrackPage() {
           Message the seller on WhatsApp
         </a>
       )}
+
+      <Link
+          className="btn s"
+          style={{ marginTop: 12 }}
+          href={`/${d.store.slug}`}
+      >
+        View store
+      </Link>
     </div>
   );
 }

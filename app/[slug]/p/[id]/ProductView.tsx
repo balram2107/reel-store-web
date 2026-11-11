@@ -1,169 +1,397 @@
 "use client";
-import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { rupees, waUrl } from "@/lib/format";
-import { addLine } from "@/lib/cart";
-import type { Product } from "@/lib/types";
-export default function ProductView({
-  slug,
-  p,
-  insta,
-  wa,
-}: {
-  slug: string;
-  p: Product;
-  insta: boolean;
-  wa: string | null;
-}) {
-  const r = useRouter();
-  const [i, setI] = useState(0);
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { useStore } from "@/components/storefront/ctx";
+import {
+  btn,
+  ErrorBox,
+  Img,
+  Price,
+  ProductCard,
+  SectionHead,
+} from "@/components/storefront/ui";
+import { api, useAsync } from "@/lib/storefront-api";
+import { setBuyNow, useCart } from "@/lib/storefront-cart";
+import type { CartLine } from "@/lib/storefront-types";
+
+export default function ProductView() {
+  const { slug, store, insta } = useStore();
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { add } = useCart(slug);
+  const r = useAsync(() => api.product(slug, id), [slug, id]);
   const [sel, setSel] = useState<Record<string, string>>({});
-  const [added, setAdded] = useState(false);
-  const imgs = p.images;
-  const ready = p.variants.every((v) => sel[v.name]);
-  const can = p.in_stock && ready;
-  const add = () => {
-    addLine(slug, {
-      product_id: p.id,
-      variant: p.variants.length ? sel : undefined,
-      quantity: 1,
-    });
-    setAdded(true);
-  };
-  const buy = () => {
-    add();
-    r.push(`/${slug}/checkout`);
-  };
-  const link = waUrl(wa);
-  return (
-    <>
-      <div className="gal">
-        {imgs[i] ? (
-          <img src={imgs[i].url} alt={`${p.name}, photo ${i + 1}`} />
+  const [qty, setQty] = useState(1);
+  const [img, setImg] = useState(0);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  if (r.error)
+    return (
+      <div className="rs-wrap" style={{ padding: "48px" }}>
+        {r.error.status === 404 ? (
+          <ErrorBox error={new Error("This product isn’t available.")} />
         ) : (
-          <div className="ph">Photo</div>
-        )}
-        {imgs.length > 1 && (
-          <span className="cnt">
-            {i + 1} / {imgs.length}
-          </span>
+          <ErrorBox error={r.error} onRetry={r.reload} />
         )}
       </div>
-      {imgs.length > 1 &&
-        (insta ? (
-          <div className="dots" role="group" aria-label="Photos">
-            {imgs.map((m, k) => (
-              <span key={m.id} className={k === i ? "on" : ""} />
-            ))}
-          </div>
-        ) : null)}
-      {imgs.length > 1 && (
+    );
+  if (!r.data)
+    return (
+      <div
+        className="rs-wrap rs-two"
+        style={{ padding: "32px 48px" }}
+        aria-busy="true"
+      >
         <div
-          className={insta ? "thumbs" : "thumbs"}
-          role="group"
-          aria-label="Choose a photo"
-        >
-          {imgs.map((m, k) => (
-            <button
-              key={m.id}
-              aria-label={`Show photo ${k + 1}`}
-              aria-current={k === i}
-              onClick={() => setI(k)}
-            >
-              <img src={m.thumb_url} alt="" />
-            </button>
-          ))}
-        </div>
-      )}
-      <div style={{ padding: "0 16px 24px" }}>
-        <h1 className="h1s">{p.name}</h1>
-        <p
           style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "baseline",
-            marginTop: 4,
+            aspectRatio: "1",
+            background: "var(--tile)",
+            borderRadius: "var(--r)",
+            opacity: 0.6,
           }}
-        >
-          <b className="t" style={{ fontSize: 22 }}>
-            {rupees(p.price_paise)}
-          </b>
-          {p.mrp_paise && p.mrp_paise > p.price_paise && (
-            <s className="mut t">{rupees(p.mrp_paise)}</s>
-          )}
-          <span className={"b " + (p.in_stock ? "g" : "n")}>
-            {p.stock_label}
-          </span>
-        </p>
-        {p.variants.map((v) => (
-          <fieldset key={v.name}>
-            <legend>{v.name}</legend>
-            <div className="chips">
-              {v.options.map((o) => (
-                <label className="chip" key={o}>
-                  <input
-                    type="radio"
-                    name={v.name}
-                    checked={sel[v.name] === o}
-                    onChange={() => setSel({ ...sel, [v.name]: o })}
-                  />
-                  {o}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ))}
-        <div className="two" style={{ marginTop: 16 }}>
-          <button className="btn s" disabled={!can} onClick={add}>
-            {added ? "Added to cart" : "Add to cart"}
-          </button>
-          <button className="btn" disabled={!can} onClick={buy}>
-            Buy now
-          </button>
+        />
+        <div>
+          <div
+            style={{
+              height: 32,
+              width: "60%",
+              background: "var(--tile)",
+              borderRadius: 6,
+              opacity: 0.6,
+            }}
+          />
         </div>
-        {!ready && p.in_stock && (
-          <p className="mut" style={{ marginTop: 8 }}>
-            Choose{" "}
-            {p.variants
-              .filter((v) => !sel[v.name])
-              .map((v) => v.name.toLowerCase())
-              .join(" and ")}{" "}
-            to continue.
-          </p>
-        )}
-        {added && (
-          <p className="mut" style={{ marginTop: 8 }}>
-            <Link href={`/${slug}/cart`}>View cart</Link>
-          </p>
-        )}
-        {link && (
-          <a className="btn s" style={{ marginTop: 8 }} href={link}>
-            Ask about this on WhatsApp
-          </a>
-        )}
-        {p.description && (
+      </div>
+    );
+
+  const { product: p, related } = r.data;
+  const dispatch = r.data.dispatch_note ?? store.dispatch_note;
+  const ret = r.data.return_note ?? store.return_note;
+  const missing = p.variants.find((v) => !sel[v.name]);
+  const max = p.max_quantity ?? 99;
+  const images = p.images.length
+    ? p.images
+    : p.cover_url
+      ? [
+          {
+            id: 0,
+            url: p.cover_url,
+            thumb_url: p.cover_url,
+            position: 0,
+            cover: true,
+          },
+        ]
+      : [];
+  const line = (): CartLine => ({
+    product_id: p.id,
+    slug: p.slug,
+    variant: sel,
+    quantity: qty,
+  });
+  const guard = () => {
+    if (missing) {
+      setMsg(`Please choose a ${missing.name.toLowerCase()}.`);
+      return false;
+    }
+    setMsg(null);
+    return true;
+  };
+  const pill = (on: boolean) =>
+    ({
+      minHeight: 44,
+      minWidth: 44,
+      padding: "0 16px",
+      borderRadius: insta ? 999 : "var(--r)",
+      border: on ? "2px solid var(--btn)" : "1px solid #D1D5DB",
+      background: on ? "color-mix(in srgb, var(--btn) 10%, white)" : "#fff",
+      color: "var(--ink)",
+      font: "500 14px var(--font)",
+      cursor: "pointer",
+    }) as const;
+  const rad = insta ? 999 : undefined;
+
+  return (
+    <div
+      className="rs-wrap"
+      style={{ maxWidth: insta ? 960 : 1200, paddingTop: 20 }}
+    >
+      <nav
+        aria-label="Breadcrumb"
+        style={{
+          font: "400 14px var(--font)",
+          color: "var(--muted)",
+          marginBottom: 20,
+        }}
+      >
+        <Link href={`/${slug}`} style={{ color: "inherit" }}>
+          Home
+        </Link>{" "}
+        /{" "}
+        {p.category && (
           <>
-            <h2 className="h2" style={{ marginTop: 24, marginBottom: 4 }}>
-              About this product
-            </h2>
-            <p
-              className="mut"
+            <Link
+              href={`/${slug}/shop?category=${p.category.slug}`}
+              style={{ color: "inherit" }}
+            >
+              {p.category.name}
+            </Link>{" "}
+            /{" "}
+          </>
+        )}
+        {p.name}
+      </nav>
+      <div className="rs-two">
+        <div>
+          <Img
+            src={images[img]?.url ?? null}
+            alt={p.name}
+            radius={insta ? "24px" : undefined}
+          />
+          {images.length > 1 && (
+            <>
+              <div
+                style={{
+                  textAlign: "right",
+                  font: "400 13px var(--font)",
+                  color: "var(--muted)",
+                  marginTop: 6,
+                }}
+              >
+                {img + 1} / {images.length}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4,1fr)",
+                  gap: 12,
+                  marginTop: 6,
+                }}
+              >
+                {images.map((im, i) => (
+                  <button
+                    key={im.id}
+                    type="button"
+                    aria-label={`Photo ${i + 1}`}
+                    aria-pressed={i === img}
+                    onClick={() => setImg(i)}
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      outline: i === img ? "2px solid var(--btn)" : "none",
+                      borderRadius: "var(--r)",
+                    }}
+                  >
+                    <Img src={im.thumb_url} alt="" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div style={{ position: "sticky", top: 24, alignSelf: "start" }}>
+          {p.category && (
+            <div
+              style={{ font: "400 14px var(--font)", color: "var(--muted)" }}
+            >
+              {p.category.name}
+            </div>
+          )}
+          <h1 style={{ margin: "6px 0 8px", font: "700 30px/1.2 var(--font)" }}>
+            {p.name}
+          </h1>
+          <div style={{ font: "700 26px var(--font)" }}>
+            <Price p={p} size={26} />
+          </div>
+          {p.stock_label && (
+            <div
               style={{
-                fontSize: 16,
-                lineHeight: "24px",
+                font: "500 14px var(--font)",
+                color: p.in_stock ? "#15803D" : "#B91C1C",
+                marginTop: 6,
+              }}
+            >
+              {p.stock_label}
+            </div>
+          )}
+          {p.description && (
+            <p
+              style={{
+                font: "400 15px/1.6 var(--font)",
+                color: "var(--muted)",
+                margin: "16px 0 0",
                 whiteSpace: "pre-line",
               }}
             >
               {p.description}
             </p>
-          </>
-        )}
-        <div className="row" style={{ marginTop: 12 }}>
-          <span>Delivery</span>
-          <span className="t">{rupees(p.delivery_charge_paise)}</span>
+          )}
+          {p.variants.map((v) => (
+            <div
+              key={v.name}
+              role="radiogroup"
+              aria-label={v.name}
+              style={{ marginTop: 20 }}
+            >
+              <div style={{ font: "600 14px var(--font)", marginBottom: 10 }}>
+                {v.name}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {v.options.map((o) => (
+                  <button
+                    key={o}
+                    type="button"
+                    role="radio"
+                    aria-checked={sel[v.name] === o}
+                    onClick={() => {
+                      setSel({ ...sel, [v.name]: o });
+                      setMsg(null);
+                    }}
+                    style={pill(sel[v.name] === o)}
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                border: "1px solid #D1D5DB",
+                borderRadius: rad ?? "var(--r)",
+                background: "#fff",
+              }}
+            >
+              <button
+                type="button"
+                aria-label="Decrease quantity"
+                disabled={qty <= 1}
+                onClick={() => setQty(qty - 1)}
+                style={{
+                  all: "unset",
+                  width: 44,
+                  height: 52,
+                  textAlign: "center",
+                  cursor: "pointer",
+                }}
+              >
+                −
+              </button>
+              <span
+                aria-live="polite"
+                style={{
+                  minWidth: 28,
+                  textAlign: "center",
+                  font: "500 16px var(--font)",
+                }}
+              >
+                {qty}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase quantity"
+                disabled={qty >= max}
+                onClick={() => setQty(qty + 1)}
+                style={{
+                  all: "unset",
+                  width: 44,
+                  height: 52,
+                  textAlign: "center",
+                  cursor: "pointer",
+                }}
+              >
+                +
+              </button>
+            </div>
+            <button
+              type="button"
+              disabled={!p.in_stock}
+              onClick={() => {
+                if (guard()) {
+                  add(line(), p.max_quantity);
+                  router.push(`/${slug}/cart`);
+                }
+              }}
+              style={{
+                ...btn(store),
+                flex: 1,
+                minHeight: 52,
+                borderRadius: rad,
+                opacity: p.in_stock ? 1 : 0.5,
+              }}
+            >
+              {p.in_stock ? "Add to cart" : "Sold out"}
+            </button>
+          </div>
+          <button
+            type="button"
+            disabled={!p.in_stock}
+            onClick={() => {
+              if (guard()) {
+                setBuyNow(slug, line());
+                router.push(`/${slug}/checkout?now=1`);
+              }
+            }}
+            style={{
+              ...btn(store, "secondary"),
+              width: "100%",
+              minHeight: 52,
+              marginTop: 12,
+              borderRadius: rad,
+              opacity: p.in_stock ? 1 : 0.5,
+            }}
+          >
+            Order now
+          </button>
+          {msg && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 10,
+                font: "500 14px var(--font)",
+                color: "#B91C1C",
+              }}
+            >
+              {msg}
+            </div>
+          )}
+          <div
+            style={{
+              marginTop: 24,
+              borderTop: "1px solid #E5E7EB",
+              paddingTop: 16,
+              font: "400 14px/1.8 var(--font)",
+              color: "var(--muted)",
+            }}
+          >
+            {dispatch && <div>{dispatch}</div>}
+            {store.payments.upi && (
+              <div>
+                Pay by UPI: your QR appears right after you order (10-minute
+                window)
+              </div>
+            )}
+            {store.payments.cod && <div>Cash on delivery available</div>}
+            {ret && <div>{ret}</div>}
+          </div>
         </div>
       </div>
-    </>
+      {related.length > 0 && (
+        <section style={{ paddingTop: 48 }}>
+          <SectionHead
+            title={insta ? "More from this store" : "You may also like"}
+            href={`/${slug}/shop`}
+          />
+          <div className="rs-grid">
+            {related.map((x) => (
+              <ProductCard key={x.id} p={x} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
