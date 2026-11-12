@@ -3,9 +3,29 @@ import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/Site";
 import { Badge } from "@/components/ui";
 
-const TITLE = "Reel Store: Your shop, one link. Take orders on UPI or COD";
+/* ------------------------------------------------------------------
+   FILL THESE IN. Anything left empty is hidden automatically,
+   so the page never shows a broken link or an empty section.
+------------------------------------------------------------------- */
+
+// 1. Live demo store, e.g. "https://reel-store.in/demo-shop"
+const DEMO_URL = "https://reel-store.in/demo-reel-store";
+
+// 4. Your WhatsApp number with country code, digits only, e.g. "919876543210"
+const WA_NUMBER = "+918572068977";
+const WA_TEXT = "Hi, I want to set up my Reel Store. Can you help me?";
+const WA_URL = WA_NUMBER
+    ? `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(WA_TEXT)}`
+    : "";
+
+// 2. Proof: real seller stores. Add 3. Screenshots go in /public/proof/.
+// Example:
+// { name: "Priya's Boutique", url: "https://reel-store.in/priya", img: "/proof/priya.png", line: "Moved her Instagram orders to one link." }
+const PROOF: { name: string; url: string; img: string; line: string }[] = [];
+
+const TITLE = "Reel Store: Stop taking orders in DMs. Get one link, paid by UPI";
 const DESC =
-    "Create your online store in minutes. Add products, share one link on Instagram or WhatsApp, and take orders paid by UPI or cash on delivery. Made for small sellers in India.";
+    "Stop chasing orders in Instagram and WhatsApp DMs. Create your store in minutes, share one link, and take orders paid straight to your own UPI or by cash on delivery. Made for small sellers in India.";
 
 // Set metadataBase (https://reel-store.in) once in app/layout.tsx.
 export const metadata: Metadata = {
@@ -24,10 +44,23 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: TITLE, description: DESC },
 };
 
+const PAIN = [
+  ["Orders buried in DMs", "Every order is one clear page with an order ID, items and address, not a scroll through chats."],
+  ["Endless “price?” and “size?” messages", "Buyers see prices, sizes and photos on your link before they message you."],
+  ["Payment screenshots to chase", "Buyers pay your UPI ID and you confirm each payment in one tap."],
+];
+
 const STEPS = [
   ["1", "Add your products", "Upload photos, set prices, add tags and sizes, and organise by category."],
   ["2", "Choose your store look", "Pick a template and your brand colours, add a banner and an announcement."],
   ["3", "Share your link", "Put it in your Instagram bio or send it on WhatsApp. Buyers order on one page."],
+];
+
+const SAFETY = [
+  ["Money goes straight to your UPI", "Buyers pay to your own UPI ID. Reel Store never holds your money."],
+  ["No commission", "We do not take a cut of your orders."],
+  ["You confirm every payment", "An order is only marked paid after you check it in your own UPI app."],
+  ["Cash on delivery too", "Let buyers who prefer it pay when the parcel arrives."],
 ];
 
 const LOOK = [
@@ -52,7 +85,9 @@ const FAQ = [
   ["What does it cost?", "Free to start, and there is no commission on your orders."],
   ["Do I need a website?", "No. You get a shop link you can share anywhere, on Instagram, WhatsApp or in your bio."],
   ["How do I get paid?", "Buyers pay to your own UPI ID or choose cash on delivery, and you confirm each payment. The money goes straight to you."],
+  ["Does Reel Store hold my money?", "No. Payments go directly to your UPI ID. We never hold, route or take a cut of your money."],
   ["Do my buyers need an account?", "No. They check out on one page with their details, and get their order confirmation by email."],
+  ["I am not technical. Can someone help me set up?", "Yes. Message us on WhatsApp and we will help you set up your store."],
   ["Can I change how my store looks?", "Yes. Choose a template, your colours, a banner, an announcement bar, and which sections show and in what order."],
   ["Can I run more than one store?", "Yes. One login can manage multiple stores."],
   ["Can I close my store for a while?", "Yes. Close it or set an end date. Buyers see a friendly page explaining the store is unavailable."],
@@ -87,23 +122,44 @@ export default function Home() {
         />
         <SiteHeader />
 
+        {/* HERO: lead with the pain */}
         <section className="sec" style={{ paddingBottom: 72 }}>
           <div className="w g hero">
             <div className="stack">
-              <h1 className="h1">Your shop, one link.</h1>
+              <h1 className="h1">Stop taking orders in DMs.</h1>
               <p className="mut" style={{ fontSize: 16, lineHeight: "24px" }}>
-                Add your products, share your link on Instagram or WhatsApp, and
-                take orders paid by UPI or cash on delivery.
+                Give buyers one link to order and pay by UPI or cash on delivery.
+                No more screenshots, no more “price?” messages. Your money goes
+                straight to your own UPI.
               </p>
               <div className="acts">
                 <Link className="btn auto" href="/login">
                   Create your store
                 </Link>
-                <a className="btn s auto" href="#how">
-                  See how it works
-                </a>
+                {DEMO_URL && (
+                    <a
+                        className="btn s auto"
+                        href={DEMO_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                      See a real store
+                    </a>
+                )}
               </div>
-              <p className="mut">5 minutes to setup. Free to start.</p>
+              {WA_URL && (
+                  <p>
+                    <a
+                        className="t"
+                        href={WA_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                      Set it up for me on WhatsApp →
+                    </a>
+                  </p>
+              )}
+              <p className="mut">5 minutes to setup. Free to start. No commission.</p>
             </div>
             {/* Swap this card for a real storefront screenshot when you have one */}
             <div style={{ display: "flex", justifyContent: "center" }}>
@@ -124,14 +180,87 @@ export default function Home() {
 
         <section className="strip">
           <div className="w">
-            <span>UPI and cash on delivery</span>
+            <span>UPI straight to you</span>
             <span>Works from Instagram and WhatsApp</span>
             <span>No commission on orders</span>
             <span>Made for India</span>
           </div>
         </section>
 
-        <section id="how" className="sec">
+        {/* PAIN */}
+        <section className="sec">
+          <div className="w">
+            <h2 className="h1s" style={{ fontSize: 22 }}>Selling on Instagram should not feel like this</h2>
+            <p className="mut m16" style={{ fontSize: 16, lineHeight: "24px" }}>
+              If your orders live in chats, you lose time and sales. One link fixes it.
+            </p>
+            <div className="g">
+              {PAIN.map(([t, d]) => (
+                  <div className="card" key={t}>
+                    <h3 className="h2" style={{ marginBottom: 4 }}>{t}</h3>
+                    <p className="mut">{d}</p>
+                  </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* DEMO */}
+        {DEMO_URL && (
+            <section className="sec alt">
+              <div className="w">
+                <h2 className="h1s">See what your buyers see</h2>
+                <p className="mut m16" style={{ fontSize: 16, lineHeight: "24px" }}>
+                  Open a real store, add something to the cart and go through checkout.
+                </p>
+                <a
+                    className="btn auto"
+                    href={DEMO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                  See a real store
+                </a>
+              </div>
+            </section>
+        )}
+
+        {/* PROOF */}
+        {PROOF.length > 0 && (
+            <section className="sec">
+              <div className="w">
+                <h2 className="h1s">Sellers already using Reel Store</h2>
+                <p className="mut m16" style={{ fontSize: 16, lineHeight: "24px" }}>
+                  Real stores, taking real orders.
+                </p>
+                <div className="g">
+                  {PROOF.map((p) => (
+                      <div className="card" key={p.url}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={p.img}
+                            alt={`${p.name} store on Reel Store`}
+                            loading="lazy"
+                            style={{ width: "100%", height: "auto", borderRadius: 12, marginBottom: 12 }}
+                        />
+                        <h3 className="h2" style={{ marginBottom: 4 }}>{p.name}</h3>
+                        <p className="mut" style={{ marginBottom: 8 }}>{p.line}</p>
+                        <a
+                            className="t"
+                            href={p.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                          Visit store →
+                        </a>
+                      </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+        )}
+
+        <section id="how" className="sec alt">
           <div className="w">
             <h2 className="h1s" style={{ fontSize: 22 }}>How it works</h2>
             <p className="mut m16" style={{ fontSize: 16, lineHeight: "24px" }}>
@@ -141,6 +270,36 @@ export default function Home() {
               {STEPS.map(([n, t, d]) => (
                   <div className="card" key={n}>
                     <div className="n">{n}</div>
+                    <h3 className="h2" style={{ marginBottom: 4 }}>{t}</h3>
+                    <p className="mut">{d}</p>
+                  </div>
+              ))}
+            </div>
+            {WA_URL && (
+                <p style={{ marginTop: 24 }}>
+                  <a
+                      className="btn s auto"
+                      href={WA_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                  >
+                    Set it up for me on WhatsApp
+                  </a>
+                </p>
+            )}
+          </div>
+        </section>
+
+        {/* PAYMENT SAFETY */}
+        <section id="safety" className="sec">
+          <div className="w">
+            <h2 className="h1s">Your money goes straight to you</h2>
+            <p className="mut m16" style={{ fontSize: 16, lineHeight: "24px" }}>
+              Buyers pay your UPI ID directly. We never hold your money.
+            </p>
+            <div className="g">
+              {SAFETY.map(([t, d]) => (
+                  <div className="card" key={t}>
                     <h3 className="h2" style={{ marginBottom: 4 }}>{t}</h3>
                     <p className="mut">{d}</p>
                   </div>
@@ -232,11 +391,23 @@ export default function Home() {
 
         <section className="band">
           <div className="w">
-            <h2 className="h1s">Start your store today</h2>
+            <h2 className="h1s">Stop taking orders in DMs. Start today.</h2>
             <p>Create your shop link and share it with your first customer.</p>
-            <Link className="btn ob auto" href="/login">
-              Create your store
-            </Link>
+            <div className="acts">
+              <Link className="btn ob auto" href="/login">
+                Create your store
+              </Link>
+              {WA_URL && (
+                  <a
+                      className="btn ob auto"
+                      href={WA_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                  >
+                    Set it up for me on WhatsApp
+                  </a>
+              )}
+            </div>
           </div>
         </section>
 
