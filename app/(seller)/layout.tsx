@@ -14,6 +14,7 @@ const NAV = [
   ["Orders", "/orders"],
   ["Products", "/products"],
   ["Settings", "/settings"],
+  ["Store Look", "/design"],
 ];
 
 export default function SellerLayout({ children }: { children: ReactNode }) {

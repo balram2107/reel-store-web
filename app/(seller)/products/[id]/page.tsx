@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { SellerProduct } from "@/lib/types";
 import { ErrBox } from "@/components/ui";
-import ProductForm, { SuccessNote } from "@/components/ProductForm";
+import ProductForm from "@/components/ProductForm";
+import { ApiAlert, Alert } from "@/components/feedback";
 
 const FLASH = "product_flash";
 type Page = { products: { id: number }[]; meta: { total: number } };
@@ -81,7 +82,11 @@ export default function EditProduct() {
       >
         Edit product
       </h1>
-      {flash && <SuccessNote>{flash}</SuccessNote>}
+      {flash && (
+          <Alert tone="success" title="Saved" onDismiss={() => setFlash("")}>
+            {flash}
+          </Alert>
+      )}
       <ErrBox e={err} />
       {!p && !err && <p className="mut">Loading…</p>}
       {p && (

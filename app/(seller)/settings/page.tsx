@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { fromPaise, toPaise, UPI_RE } from "@/lib/forms";
-import type { Category, SellerStore, Theme } from "@/lib/types";
+import type { Category, SellerStore } from "@/lib/types";
 import { Field } from "@/components/ui";
-import ThemePicker from "@/components/ThemePicker";
 import {
   ApiAlert,
   FieldError,
@@ -39,20 +39,19 @@ type F = {
   waNum: string;
   status: "open" | "closed";
   closing: string;
-  theme: Theme;
 };
 
 // Fields that can show an error message, and the backend names that map to them.
 type FKey =
-  | "name"
-  | "slug"
-  | "insta"
-  | "email"
-  | "phone"
-  | "delivery"
-  | "freeAbove"
-  | "upi"
-  | "waNum";
+    | "name"
+    | "slug"
+    | "insta"
+    | "email"
+    | "phone"
+    | "delivery"
+    | "freeAbove"
+    | "upi"
+    | "waNum";
 type FErr = Partial<Record<FKey, string>>;
 const BACKEND_KEYS: Record<string, FKey> = {
   name: "name",
@@ -99,7 +98,6 @@ const init = (s: SellerStore): F => ({
   waNum: s.whatsapp_number || "",
   status: s.status,
   closing: s.closing_date || "",
-  theme: s.theme,
 });
 
 export default function Settings() {
@@ -117,25 +115,25 @@ export default function Settings() {
 
   useEffect(() => {
     api<{ store: SellerStore }>("/seller/store", { auth: true })
-      .then((x) => {
-        setS(x.store);
-        setF(init(x.store));
-      })
-      .catch(setErr);
+        .then((x) => {
+          setS(x.store);
+          setF(init(x.store));
+        })
+        .catch(setErr);
     api<{ categories: Category[] }>("/categories?kind=store")
-      .then((x) => setCats(x.categories))
-      .catch(() => {});
+        .then((x) => setCats(x.categories))
+        .catch(() => {});
   }, []);
 
   if (!f || !s)
     return (
-      <>
-        {err ? (
-          <ApiAlert error={err} title="Couldn't load settings" />
-        ) : (
-          <p className="mut">Loading…</p>
-        )}
-      </>
+        <>
+          {err ? (
+              <ApiAlert error={err} title="Couldn't load settings" />
+          ) : (
+              <p className="mut">Loading…</p>
+          )}
+        </>
     );
 
   const up = <K extends keyof F>(k: K, v: F[K]) => {
@@ -170,7 +168,7 @@ export default function Settings() {
     setErr(null);
     const g = f!;
     const dc = toPaise(g.delivery),
-      fa = toPaise(g.freeAbove);
+        fa = toPaise(g.freeAbove);
     const phone = g.phone.replace(/\D/g, "");
 
     const errs: FErr = {};
@@ -192,6 +190,7 @@ export default function Settings() {
       return;
     }
 
+    // No `theme` here: the Store look page owns it.
     const body = {
       name: g.name,
       slug: g.slug,
@@ -214,7 +213,6 @@ export default function Settings() {
       whatsapp_number: g.waNum || null,
       status: g.status === "closed" ? "closed" : "active",
       closing_date: g.closing || null,
-      theme: g.theme,
     };
 
     setBusy(true);
@@ -231,17 +229,17 @@ export default function Settings() {
       // Saved fine, but these settings stop shoppers from ordering.
       if (g.status === "closed")
         toast.warning(
-          "Your store is closed, so shoppers can't place orders until you reopen it.",
-          {
-            title: "Store is closed",
-          },
+            "Your store is closed, so shoppers can't place orders until you reopen it.",
+            {
+              title: "Store is closed",
+            },
         );
       if (!g.upi && !g.cod)
         toast.warning(
-          "Add a UPI ID or turn on cash on delivery so shoppers can pay.",
-          {
-            title: "No way to pay",
-          },
+            "Add a UPI ID or turn on cash on delivery so shoppers can pay.",
+            {
+              title: "No way to pay",
+            },
         );
     } catch (x) {
       const mapped = backendFieldErrors(x);
@@ -256,312 +254,316 @@ export default function Settings() {
   const wa = s.features?.whatsapp_available;
 
   return (
-    <form onSubmit={save} noValidate style={{ maxWidth: 720 }}>
-      <h1
-        style={{
-          fontSize: 28,
-          lineHeight: "36px",
-          fontWeight: 600,
-          marginBottom: 16,
-        }}
-      >
-        Store settings
-      </h1>
-      <FormStatus error={err} />
-      <div style={{ display: "grid", gap: 16 }}>
-        <div className="card">
-          <h2 className="h2">Store details</h2>
-          <Field
-            label="Store name"
-            required
-            value={f.name}
-            {...errProps("name")}
-            onChange={(e) => up("name", e.target.value)}
-          />
-          <FieldError id="st-name-err">{fe.name}</FieldError>
-          <Field
-            label="Store link"
-            required
-            value={f.slug}
-            {...errProps("slug")}
-            onChange={(e) => up("slug", e.target.value.toLowerCase())}
-          />
-          <FieldError id="st-slug-err">{fe.slug}</FieldError>
-          <p className="mut" style={{ margin: "-4px 0 12px" }}>
-            reel-store.in/{f.slug}. Changing it breaks links you’ve already
-            shared.
-          </p>
-          <Field
-            label="Instagram handle"
-            placeholder="@yourshop"
-            value={f.insta}
-            {...errProps("insta")}
-            onChange={(e) => up("insta", e.target.value)}
-          />
-          <FieldError id="st-insta-err">{fe.insta}</FieldError>
-          <label className="f">
-            Bio
-            <textarea
-              className="in"
-              value={f.bio}
-              onChange={(e) => up("bio", e.target.value)}
+      <form onSubmit={save} noValidate style={{ maxWidth: 720 }}>
+        <h1
+            style={{
+              fontSize: 28,
+              lineHeight: "36px",
+              fontWeight: 600,
+              marginBottom: 16,
+            }}
+        >
+          Store settings
+        </h1>
+        <FormStatus error={err} />
+        <div style={{ display: "grid", gap: 16 }}>
+          <div className="card">
+            <h2 className="h2">Store details</h2>
+            <Field
+                label="Store name"
+                required
+                value={f.name}
+                {...errProps("name")}
+                onChange={(e) => up("name", e.target.value)}
             />
-          </label>
-          <label className="f">
-            Store category
-            <select
-              className="in"
-              value={f.cat}
-              onChange={(e) => up("cat", e.target.value)}
-            >
-              <option value="">No category</option>
-              {cats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="f">
-            Logo
-            {s.logo_url && (
-              <>
-                <br />
-                <img
-                  src={s.logo_url}
-                  alt="Current logo"
-                  width={64}
-                  height={64}
-                  style={{ borderRadius: 8, objectFit: "cover" }}
-                />
-              </>
-            )}
-            <input
-              className="in"
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const x = e.target.files?.[0];
-                if (x) upload("logo", x);
-                e.target.value = "";
-              }}
+            <FieldError id="st-name-err">{fe.name}</FieldError>
+            <Field
+                label="Store link"
+                required
+                value={f.slug}
+                {...errProps("slug")}
+                onChange={(e) => up("slug", e.target.value.toLowerCase())}
             />
-          </label>
-          <label className="f" style={{ marginBottom: 0 }}>
-            Banner
-            {s.banner_url && (
-              <>
-                <br />
-                <img
-                  src={s.banner_url}
-                  alt="Current banner"
-                  style={{
-                    width: "100%",
-                    maxWidth: 320,
-                    height: 80,
-                    borderRadius: 8,
-                    objectFit: "cover",
-                  }}
-                />
-              </>
-            )}
-            <input
-              className="in"
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const x = e.target.files?.[0];
-                if (x) upload("banner", x);
-                e.target.value = "";
-              }}
+            <FieldError id="st-slug-err">{fe.slug}</FieldError>
+            <p className="mut" style={{ margin: "-4px 0 12px" }}>
+              reel-store.in/{f.slug}. Changing it breaks links you’ve already
+              shared.
+            </p>
+            <Field
+                label="Instagram handle"
+                placeholder="@yourshop"
+                value={f.insta}
+                {...errProps("insta")}
+                onChange={(e) => up("insta", e.target.value)}
             />
-          </label>
-        </div>
-
-        <div className="card">
-          <h2 className="h2">Contact</h2>
-          <Field
-            label="Contact email, optional"
-            type="email"
-            value={f.email}
-            {...errProps("email")}
-            onChange={(e) => up("email", e.target.value)}
-          />
-          <FieldError id="st-email-err">{fe.email}</FieldError>
-          <Field
-            label="Contact phone, optional"
-            type="tel"
-            inputMode="tel"
-            placeholder="919876543210"
-            value={f.phone}
-            {...errProps("phone")}
-            onChange={(e) => up("phone", e.target.value)}
-          />
-          <FieldError id="st-phone-err">{fe.phone}</FieldError>
-          <p className="mut">Shown publicly on your store.</p>
-        </div>
-
-        <div className="card">
-          <h2 className="h2">About &amp; policies</h2>
-          <label className="f">
-            About your store
-            <textarea
-              className="in"
-              rows={5}
-              value={f.about}
-              onChange={(e) => up("about", e.target.value)}
-            />
-          </label>
-          <label className="f">
-            Shipping policy
-            <textarea
-              className="in"
-              rows={4}
-              value={f.shipPolicy}
-              onChange={(e) => up("shipPolicy", e.target.value)}
-            />
-          </label>
-          <label className="f" style={{ marginBottom: 0 }}>
-            Returns policy
-            <textarea
-              className="in"
-              rows={4}
-              value={f.returnPolicy}
-              onChange={(e) => up("returnPolicy", e.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="card">
-          <h2 className="h2">Delivery</h2>
-          <Field
-            label="Delivery charge (₹)"
-            inputMode="decimal"
-            value={f.delivery}
-            {...errProps("delivery")}
-            onChange={(e) => up("delivery", e.target.value)}
-          />
-          <FieldError id="st-delivery-err">{fe.delivery}</FieldError>
-          <Field
-            label="Free delivery above (₹), optional"
-            inputMode="decimal"
-            value={f.freeAbove}
-            {...errProps("freeAbove")}
-            onChange={(e) => up("freeAbove", e.target.value)}
-          />
-          <FieldError id="st-freeAbove-err">{fe.freeAbove}</FieldError>
-          <Field
-            label="Dispatch note, optional"
-            placeholder="Ships in 2-3 days"
-            maxLength={80}
-            value={f.dispatchNote}
-            onChange={(e) => up("dispatchNote", e.target.value)}
-          />
-          <Field
-            label="Returns note, optional"
-            placeholder="7-day easy returns"
-            maxLength={80}
-            value={f.returnNote}
-            onChange={(e) => up("returnNote", e.target.value)}
-          />
-          <label className="check" style={{ alignItems: "center" }}>
-            <input
-              type="checkbox"
-              checked={f.pickup}
-              onChange={(e) => up("pickup", e.target.checked)}
-            />
-            Offer pickup
-          </label>
-        </div>
-
-        <div className="card">
-          <h2 className="h2">Payments</h2>
-          <Field
-            label="UPI ID"
-            placeholder="yourname@bank"
-            value={f.upi}
-            {...errProps("upi")}
-            onChange={(e) => up("upi", e.target.value)}
-          />
-          <FieldError id="st-upi-err">{fe.upi}</FieldError>
-          <label className="check" style={{ alignItems: "center" }}>
-            <input
-              type="checkbox"
-              checked={f.cod}
-              onChange={(e) => up("cod", e.target.checked)}
-            />
-            Cash on delivery
-          </label>
-          <p className="mut">
-            Buyers pay your UPI ID directly. You confirm each payment.
-          </p>
-        </div>
-
-        <div className="card">
-          <h2 className="h2">WhatsApp</h2>
-          <label className="check" style={{ alignItems: "center" }}>
-            <input
-              type="checkbox"
-              disabled={!wa}
-              checked={f.waOn}
-              onChange={(e) => up("waOn", e.target.checked)}
-            />
-            Show a WhatsApp order button
-          </label>
-          <Field
-            label="WhatsApp number"
-            type="tel"
-            disabled={!wa}
-            value={f.waNum}
-            {...errProps("waNum")}
-            onChange={(e) => up("waNum", e.target.value)}
-          />
-          <FieldError id="st-waNum-err">{fe.waNum}</FieldError>
-          {!wa && <p className="mut">Not enabled for your store yet.</p>}
-        </div>
-
-        <div className="card">
-          <h2 className="h2">Store status</h2>
-          {(["open", "closed"] as const).map((v) => (
-            <label className="check" style={{ alignItems: "center" }} key={v}>
-              <input
-                type="radio"
-                name="status"
-                checked={f.status === v}
-                onChange={() => up("status", v)}
+            <FieldError id="st-insta-err">{fe.insta}</FieldError>
+            <label className="f">
+              Bio
+              <textarea
+                  className="in"
+                  value={f.bio}
+                  onChange={(e) => up("bio", e.target.value)}
               />
-              {v === "open" ? "Open" : "Closed"}
             </label>
-          ))}
-          <Field
-            label="Closing date, optional"
-            type="date"
-            value={f.closing}
-            onChange={(e) => up("closing", e.target.value)}
+            <label className="f">
+              Store category
+              <select
+                  className="in"
+                  value={f.cat}
+                  onChange={(e) => up("cat", e.target.value)}
+              >
+                <option value="">No category</option>
+                {cats.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                ))}
+              </select>
+            </label>
+            <label className="f">
+              Logo
+              {s.logo_url && (
+                  <>
+                    <br />
+                    <img
+                        src={s.logo_url}
+                        alt="Current logo"
+                        width={64}
+                        height={64}
+                        style={{ borderRadius: 8, objectFit: "cover" }}
+                    />
+                  </>
+              )}
+              <input
+                  className="in"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const x = e.target.files?.[0];
+                    if (x) upload("logo", x);
+                    e.target.value = "";
+                  }}
+              />
+            </label>
+            <label className="f" style={{ marginBottom: 0 }}>
+              Banner
+              {s.banner_url && (
+                  <>
+                    <br />
+                    <img
+                        src={s.banner_url}
+                        alt="Current banner"
+                        style={{
+                          width: "100%",
+                          maxWidth: 320,
+                          height: 80,
+                          borderRadius: 8,
+                          objectFit: "cover",
+                        }}
+                    />
+                  </>
+              )}
+              <input
+                  className="in"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const x = e.target.files?.[0];
+                    if (x) upload("banner", x);
+                    e.target.value = "";
+                  }}
+              />
+            </label>
+          </div>
+
+          <div className="card">
+            <h2 className="h2">Contact</h2>
+            <Field
+                label="Contact email, optional"
+                type="email"
+                value={f.email}
+                {...errProps("email")}
+                onChange={(e) => up("email", e.target.value)}
+            />
+            <FieldError id="st-email-err">{fe.email}</FieldError>
+            <Field
+                label="Contact phone, optional"
+                type="tel"
+                inputMode="tel"
+                placeholder="919876543210"
+                value={f.phone}
+                {...errProps("phone")}
+                onChange={(e) => up("phone", e.target.value)}
+            />
+            <FieldError id="st-phone-err">{fe.phone}</FieldError>
+            <p className="mut">Shown publicly on your store.</p>
+          </div>
+
+          <div className="card">
+            <h2 className="h2">About &amp; policies</h2>
+            <label className="f">
+              About your store
+              <textarea
+                  className="in"
+                  rows={5}
+                  value={f.about}
+                  onChange={(e) => up("about", e.target.value)}
+              />
+            </label>
+            <label className="f">
+              Shipping policy
+              <textarea
+                  className="in"
+                  rows={4}
+                  value={f.shipPolicy}
+                  onChange={(e) => up("shipPolicy", e.target.value)}
+              />
+            </label>
+            <label className="f" style={{ marginBottom: 0 }}>
+              Returns policy
+              <textarea
+                  className="in"
+                  rows={4}
+                  value={f.returnPolicy}
+                  onChange={(e) => up("returnPolicy", e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="card">
+            <h2 className="h2">Delivery</h2>
+            <Field
+                label="Delivery charge (₹)"
+                inputMode="decimal"
+                value={f.delivery}
+                {...errProps("delivery")}
+                onChange={(e) => up("delivery", e.target.value)}
+            />
+            <FieldError id="st-delivery-err">{fe.delivery}</FieldError>
+            <Field
+                label="Free delivery above (₹), optional"
+                inputMode="decimal"
+                value={f.freeAbove}
+                {...errProps("freeAbove")}
+                onChange={(e) => up("freeAbove", e.target.value)}
+            />
+            <FieldError id="st-freeAbove-err">{fe.freeAbove}</FieldError>
+            <Field
+                label="Dispatch note, optional"
+                placeholder="Ships in 2-3 days"
+                maxLength={80}
+                value={f.dispatchNote}
+                onChange={(e) => up("dispatchNote", e.target.value)}
+            />
+            <Field
+                label="Returns note, optional"
+                placeholder="7-day easy returns"
+                maxLength={80}
+                value={f.returnNote}
+                onChange={(e) => up("returnNote", e.target.value)}
+            />
+            <label className="check" style={{ alignItems: "center" }}>
+              <input
+                  type="checkbox"
+                  checked={f.pickup}
+                  onChange={(e) => up("pickup", e.target.checked)}
+              />
+              Offer pickup
+            </label>
+          </div>
+
+          <div className="card">
+            <h2 className="h2">Payments</h2>
+            <Field
+                label="UPI ID"
+                placeholder="yourname@bank"
+                value={f.upi}
+                {...errProps("upi")}
+                onChange={(e) => up("upi", e.target.value)}
+            />
+            <FieldError id="st-upi-err">{fe.upi}</FieldError>
+            <label className="check" style={{ alignItems: "center" }}>
+              <input
+                  type="checkbox"
+                  checked={f.cod}
+                  onChange={(e) => up("cod", e.target.checked)}
+              />
+              Cash on delivery
+            </label>
+            <p className="mut">
+              Buyers pay your UPI ID directly. You confirm each payment.
+            </p>
+          </div>
+
+          <div className="card">
+            <h2 className="h2">WhatsApp</h2>
+            <label className="check" style={{ alignItems: "center" }}>
+              <input
+                  type="checkbox"
+                  disabled={!wa}
+                  checked={f.waOn}
+                  onChange={(e) => up("waOn", e.target.checked)}
+              />
+              Show a WhatsApp order button
+            </label>
+            <Field
+                label="WhatsApp number"
+                type="tel"
+                disabled={!wa}
+                value={f.waNum}
+                {...errProps("waNum")}
+                onChange={(e) => up("waNum", e.target.value)}
+            />
+            <FieldError id="st-waNum-err">{fe.waNum}</FieldError>
+            {!wa && <p className="mut">Not enabled for your store yet.</p>}
+          </div>
+
+          <div className="card">
+            <h2 className="h2">Store status</h2>
+            {(["open", "closed"] as const).map((v) => (
+                <label className="check" style={{ alignItems: "center" }} key={v}>
+                  <input
+                      type="radio"
+                      name="status"
+                      checked={f.status === v}
+                      onChange={() => up("status", v)}
+                  />
+                  {v === "open" ? "Open" : "Closed"}
+                </label>
+            ))}
+            <Field
+                label="Closing date, optional"
+                type="date"
+                value={f.closing}
+                onChange={(e) => up("closing", e.target.value)}
+            />
+            {s.ends_on && (
+                <p className="mut">Your store is set to end on {s.ends_on}.</p>
+            )}
+          </div>
+
+          <div className="card">
+            <h2 className="h2">Store look</h2>
+            <p className="mut">
+              Colours, fonts, layout, announcement bar and more now live on their
+              own page.
+            </p>
+            <Link href="/design">Customise your store look →</Link>
+          </div>
+
+          {/* Appears only when something changed; it is the Save button. */}
+          <UnsavedBar
+              dirty={dirty}
+              busy={busy}
+              saveLabel="Save settings"
+              onDiscard={() => {
+                setF(init(s));
+                setFe({});
+                setErr(null);
+                toast.info("Your changes were discarded.", { title: "Reverted" });
+              }}
           />
-          {s.ends_on && (
-            <p className="mut">Your store is set to end on {s.ends_on}.</p>
-          )}
         </div>
-
-        <div className="card">
-          <h2 className="h2">Store look</h2>
-          <ThemePicker v={f.theme} set={(t) => up("theme", t)} />
-        </div>
-
-        {/* Appears only when something changed; it is the Save button. */}
-        <UnsavedBar
-          dirty={dirty}
-          busy={busy}
-          saveLabel="Save settings"
-          onDiscard={() => {
-            setF(init(s));
-            setFe({});
-            setErr(null);
-            toast.info("Your changes were discarded.", { title: "Reverted" });
-          }}
-        />
-      </div>
-    </form>
+      </form>
   );
 }
